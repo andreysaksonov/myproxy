@@ -1,0 +1,39 @@
+apply from: "gradle/vertx.gradle"
+
+dependencies {
+  // provided "org.codehaus.groovy:groovy-all:$groovyVersion"
+  // provided "io.vertx:lang-groovy:$groovyLangModVersion@jar"
+}
+
+def configurePom(def pom) {
+  pom.project {
+    name rootProject.name
+    description 'Reverse Mobius - Simple HTTP Reverse Proxy'
+    inceptionYear '2014'
+    packaging 'jar'
+
+    developers {
+      developer {
+        id 'suxonoff'
+        name 'Andrey Saksonov'
+        email 'saksonov.andrey@gmail.com'
+      }
+    }
+
+    scm {
+      url 'https://bitbucket.org/suxonoff/reverse-mobius'
+    }
+
+    licenses {
+      license {
+        name 'The Apache Software License, Version 2.0'
+        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        distribution 'repo'
+      }
+    }
+
+    properties {
+      setProperty('project.build.sourceEncoding', 'UTF8')
+    }
+  }
+}
