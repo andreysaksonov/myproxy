@@ -1,0 +1,10 @@
+#!/bin/bash
+
+LOG_FILE="${OPENSHIFT_DIY_LOG_DIR}reverse-mobius.log"
+
+cd ${OPENSHIFT_REPO_DIR}
+
+START_COMMAND="java -jar reverse-mobius.jar -conf conf.json"
+
+echo $START_COMMAND &>> $LOG_FILE
+nohup bash -c "REVERSE_MOBIUS_IP=${OPENSHIFT_DIY_IP} REVERSE_MOBIUS_PORT=${OPENSHIFT_DIY_PORT} ${START_COMMAND} &>> ${LOG_FILE} 2>&1" &> /dev/null &

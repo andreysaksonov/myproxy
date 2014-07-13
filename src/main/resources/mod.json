@@ -1,5 +1,5 @@
 {
-  "main":"com.zandbee.mobius.ReverseProxyVerticle",
+  "main":"com.zandbee.mobius.ReverseMobiusVerticle",
   "description":"Simple HTTP Reverse Proxy",
   "licenses": ["The Apache Software License Version 2.0"],
   "author": "Andrey Saksonov",

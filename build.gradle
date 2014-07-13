@@ -1,8 +1,7 @@
 apply from: "gradle/vertx.gradle"
 
 dependencies {
-  // provided "org.codehaus.groovy:groovy-all:$groovyVersion"
-  // provided "io.vertx:lang-groovy:$groovyLangModVersion@jar"
+  compile 'com.google.guava:guava:17.0'
 }
 
 def configurePom(def pom) {
@@ -33,7 +32,7 @@ def configurePom(def pom) {
     }
 
     properties {
-      setProperty('project.build.sourceEncoding', 'UTF8')
+      setProperty('project.build.sourceEncoding', 'UTF-8')
     }
   }
 }
