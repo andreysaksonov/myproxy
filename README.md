@@ -6,3 +6,5 @@ Version: 0.1
 ```
 ./gradlew copyMod runMod -d
 ```
+
+Author: [Andrey Saksonov](https://saksonov.me)
