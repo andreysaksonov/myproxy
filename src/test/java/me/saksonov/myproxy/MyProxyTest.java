@@ -16,14 +16,11 @@ import org.junit.runner.RunWith;
 @RunWith(VertxUnitRunner.class)
 public class MyProxyTest {
 
-    public static final String LOCALHOST = "localhost";
-    public static final String ROOT_URI = "/";
-
     private Vertx vertx;
     private int httpServerPort;
 
     @Before
-    public void setup(TestContext context) {
+    public void initialize(TestContext context) {
         vertx = Vertx.vertx();
         httpServerPort = ServerSocketUtils.getLocalPort();
 
@@ -39,19 +36,19 @@ public class MyProxyTest {
                 context.asyncAssertSuccess());
     }
 
-    @After
-    public void teardown(TestContext context) {
-        vertx.close(context.asyncAssertSuccess());
-    }
-
     @Test
-    public void testStart(TestContext context) {
+    public void testMyProxy(TestContext context) {
         Async async = context.async();
 
-        vertx.createHttpClient().getNow(httpServerPort, LOCALHOST, ROOT_URI,
+        vertx.createHttpClient().getNow(httpServerPort, "localhost", "/",
                 response -> {
                     response.handler(buffer -> context.assertFalse(Strings.isNullOrEmpty(buffer.toString())));
                     response.endHandler($ -> async.complete());
                 });
+    }
+
+    @After
+    public void close(TestContext context) {
+        vertx.close(context.asyncAssertSuccess());
     }
 }
