@@ -1,10 +1,8 @@
-Reverse Mobius
-==============
-Version: 0.1
+MyProxy - Simple HTTP Reverse Proxy
+==========================================
 
-####Build & Run:
-```
-./gradlew copyMod runMod -d
-```
+Version: 0.2
 
-Author: [Andrey Saksonov](https://saksonov.me)
+Frameworks: [Vert.x](http://vertx.io/) 3.2.1
+
+Build: `mvn clean package`

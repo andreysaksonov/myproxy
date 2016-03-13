@@ -1,4 +1,4 @@
 {
-  "host1" : "www.yandex.ru",
-  "host2" : "www.ya.ru"
+  "http.server.port" : 8081,
+  "http.client.hosts" : "www.yandex.ru, www.google.com"
 }

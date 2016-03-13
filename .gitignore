@@ -1,6 +1,2 @@
-.idea
-*.iml
-*.ipr
-*.iws
-build/
-classes/
+target/
+*.log*
