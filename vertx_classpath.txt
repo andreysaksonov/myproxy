@@ -1,5 +1,0 @@
-src/main/resources
-bin
-out/production/reverse-mobius
-out/test/reverse-mobius
-build/deps
