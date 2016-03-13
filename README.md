@@ -1,8 +1,8 @@
-Reverse Mobius - Simple HTTP Reverse Proxy
+MyProxy - Simple HTTP Reverse Proxy
 ==========================================
 
-Version: 0.1
+Version: 0.2
 
-Frameworks: Vert.x 2.1
+Frameworks: [Vert.x](http://vertx.io/) 3.2.1
 
-Build: ./gradlew copyMod runMod -d
+Build: `mvn clean package`
