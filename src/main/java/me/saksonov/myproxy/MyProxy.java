@@ -3,10 +3,16 @@ package me.saksonov.myproxy;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
-import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.rxjava.core.http.HttpClient;
+import io.vertx.rxjava.core.http.HttpClientRequest;
+import io.vertx.rxjava.core.http.HttpServer;
+import io.vertx.rxjava.core.http.HttpServerResponse;
 import me.saksonov.myproxy.support.ForwardedHeader;
 
 import java.util.Iterator;
@@ -16,48 +22,59 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public class MyProxy extends AbstractVerticle {
 
+    private static Logger logger = LoggerFactory.getLogger(MyProxy.class);
+
     @Override
-    public void start(Future<Void> future) {
+    public void start(Future<Void> startFuture) {
+        logger.info("MyProxy 0.2");
+
         Config config = new Config();
 
-        HttpClient httpClient = vertx.createHttpClient();
         HttpServer httpServer = vertx.createHttpServer();
+        HttpClient httpClient = vertx.createHttpClient();
 
         Iterator<String> hosts = Iterables.cycle(config.getHttpClientHosts()).iterator();
 
-        httpServer.requestHandler(serverRequest -> {
-            HttpMethod method = serverRequest.method();
+        httpServer.requestStream().toObservable().subscribe(serverRequest -> {
             String host = hosts.next();
+
+            HttpMethod method = serverRequest.method();
             String uri = serverRequest.uri();
 
-            HttpClientRequest clientRequest = httpClient.request(method, host, uri, clientResponse -> {
-                HttpServerResponse serverResponse = serverRequest.response();
-                serverResponse.setChunked(true);
-                serverResponse.setStatusCode(clientResponse.statusCode());
-                serverResponse.headers().setAll(clientResponse.headers());
-                serverResponse.headers().set(Headers.HOST, serverRequest.getHeader(Headers.HOST));
+            HttpClientRequest clientRequest = httpClient.request(method, host, uri).setChunked(true);
 
-                clientResponse.handler(serverResponse::write);
-                clientResponse.endHandler($ -> serverResponse.end());
-            });
-            clientRequest.setChunked(true);
-            clientRequest.headers().setAll(serverRequest.headers());
-            clientRequest.headers().set(Headers.HOST, host);
-            // RFC 7239 "Forwarded HTTP Extension"
-            clientRequest.headers().set(Headers.FORWARDED, ForwardedHeader.format(serverRequest.localAddress().host(),
-                    serverRequest.remoteAddress().host(),
-                    serverRequest.getHeader(Headers.HOST),
-                    HTTP_PROTO));
+            String forwardedBy = serverRequest.localAddress().host();
+            String forwardedFor = serverRequest.remoteAddress().host();
+            String forwardedHost = serverRequest.getHeader(Headers.HOST);
 
-            serverRequest.handler(clientRequest::write);
-            serverRequest.endHandler($ -> clientRequest.end());
-        }).listen(config.getHttpServerPort(), result -> {
-            if (result.succeeded()) {
-                future.complete();
-            } else {
-                future.fail(result.cause());
-            }
+            clientRequest.headers()
+                    .setAll(serverRequest.headers())
+                    .set(Headers.HOST, host)
+                    // RFC 7239 "Forwarded HTTP Extension"
+                    .set(Headers.FORWARDED, ForwardedHeader.format(forwardedBy, forwardedFor, forwardedHost, HTTP_PROTO));
+
+            clientRequest.toObservable().subscribe(
+                    clientResponse -> {
+                        HttpServerResponse serverResponse = serverRequest.response();
+
+                        serverResponse.setChunked(true);
+                        serverResponse.setStatusCode(clientResponse.statusCode());
+                        serverResponse.headers().setAll(clientResponse.headers());
+                        serverResponse.headers().set(Headers.HOST, serverRequest.getHeader(Headers.HOST));
+
+                        clientResponse.toObservable().subscribe(serverResponse::write);
+                        serverResponse.end();
+                    }
+            );
+
+            serverRequest.toObservable().subscribe(clientRequest::write);
+            clientRequest.end();
+
+            logger.trace(String.format("%s %s -> %s %s%s", method, uri, method, host, uri));
         });
+
+        httpServer.listenObservable(config.getHttpServerPort())
+                .subscribe($ -> startFuture.complete(), error -> startFuture.fail(error.getCause()));
     }
 
     private interface Headers {
