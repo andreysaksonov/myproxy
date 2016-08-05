@@ -1,5 +1,6 @@
 package me.saksonov.myproxy;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
@@ -9,14 +10,17 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.rxjava.core.MultiMap;
 import io.vertx.rxjava.core.http.HttpClient;
 import io.vertx.rxjava.core.http.HttpClientRequest;
 import io.vertx.rxjava.core.http.HttpServer;
 import io.vertx.rxjava.core.http.HttpServerResponse;
 import me.saksonov.myproxy.support.ForwardedHeader;
+import me.saksonov.myproxy.support.MultiMapUtils;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -36,12 +40,14 @@ public class MyProxy extends AbstractVerticle {
         Iterator<String> hosts = Iterables.cycle(config.getHttpClientHosts()).iterator();
 
         httpServer.requestStream().toObservable().subscribe(serverRequest -> {
-            String host = hosts.next();
+            UUID requestTag = UUID.randomUUID();
+
+            String targetHost = hosts.next();
 
             HttpMethod method = serverRequest.method();
             String uri = serverRequest.uri();
 
-            HttpClientRequest clientRequest = httpClient.request(method, host, uri).setChunked(true);
+            HttpClientRequest clientRequest = httpClient.request(method, targetHost, uri).setChunked(true);
 
             String forwardedBy = serverRequest.localAddress().host();
             String forwardedFor = serverRequest.remoteAddress().host();
@@ -49,28 +55,35 @@ public class MyProxy extends AbstractVerticle {
 
             clientRequest.headers()
                     .setAll(serverRequest.headers())
-                    .set(Headers.HOST, host)
+                    .set(Headers.HOST, targetHost)
                     // RFC 7239 "Forwarded HTTP Extension"
                     .set(Headers.FORWARDED, ForwardedHeader.format(forwardedBy, forwardedFor, forwardedHost, HTTP_PROTO));
 
             clientRequest.toObservable().subscribe(
                     clientResponse -> {
+                        int statusCode = clientResponse.statusCode();
+                        String statusMessage = clientResponse.statusMessage();
+
+                        MultiMap headers = clientResponse.headers();
+
                         HttpServerResponse serverResponse = serverRequest.response();
 
                         serverResponse.setChunked(true);
-                        serverResponse.setStatusCode(clientResponse.statusCode());
-                        serverResponse.headers().setAll(clientResponse.headers());
+                        serverResponse.setStatusCode(statusCode);
+                        serverResponse.headers().setAll(headers);
                         serverResponse.headers().set(Headers.HOST, serverRequest.getHeader(Headers.HOST));
 
                         clientResponse.toObservable().subscribe(serverResponse::write);
                         serverResponse.end();
+
+                        logger.trace(String.format("[%s] %s %s %s", requestTag, statusCode, statusMessage, MultiMapUtils.toString(headers)));
                     }
             );
 
             serverRequest.toObservable().subscribe(clientRequest::write);
             clientRequest.end();
 
-            logger.trace(String.format("%s %s -> %s %s%s", method, uri, method, host, uri));
+            logger.trace(String.format("[%s] %s %s -> %s %s%s", requestTag, method, uri, method, targetHost, uri));
         });
 
         httpServer.listenObservable(config.getHttpServerPort())
